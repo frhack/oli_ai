@@ -2,7 +2,9 @@ from oli_ai import oli_ai
 from oli_ai.utils import *
 from oli_ai.maze import *
 from oli_ai.prob import *
+from oli_ai.vectors_lib import *
 
+import numpy as np
 
 queue = Queue()
 
