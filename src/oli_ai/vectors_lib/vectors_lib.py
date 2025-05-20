@@ -5,7 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
 
-def plot(vectors, xlim=(-10, 10), ylim=(-10, 10), figsize=(6, 6)):
+def plot_vectors(vectors, xlim=(-10, 10), ylim=(-10, 10), figsize=(6, 6)):
     """
     Plotta una serie di vettori su una griglia cartesiana, assegnando un colore diverso a ciascun vettore.
     
@@ -32,7 +32,7 @@ def plot(vectors, xlim=(-10, 10), ylim=(-10, 10), figsize=(6, 6)):
     plt.show()
 
 
-def add(v1, v2, xlim=(-10, 10), ylim=(-10, 10), figsize=(6, 6)):
+def plot_add(v1, v2, xlim=(-10, 10), ylim=(-10, 10), figsize=(6, 6)):
     """
     Calcola la somma di due vettori e visualizza i due vettori, la loro somma e il parallelogramma risultante.
 
