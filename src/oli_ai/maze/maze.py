@@ -143,6 +143,21 @@ def search_(maze, frontier):
                 paths[s2] = paths[s] + [s2]
 
 
+def search_solution(maze, frontier):
+    """Find a shortest sequence of states from start to the goal."""
+    start = (0, 0)
+    goal = {(maze.width - 1, maze.height - 1), (maze.width - 1, 0),(0, maze.height - 1)}
+    frontier.put(start)  # A queue of states to consider
+    paths = {start: [start]}   # start has a one-square path
+    while frontier:
+        s = frontier.pop()
+        if s in goal:
+            return paths[s]
+        for snew in neighbors4(s):
+            if snew not in paths and edge(s, snew) in maze.edges and snew not in frontier:
+                frontier.put(snew)
+                paths[snew] = paths[s] + [snew]
+
 
 
 
