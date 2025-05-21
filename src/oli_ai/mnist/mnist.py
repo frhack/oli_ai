@@ -4,6 +4,12 @@ import numpy as np
 from numpy import dot
 from numpy.linalg import norm
 
+
+def plot_img(image):
+    plt.imshow(image, cmap='gray')
+    plt.show()
+
+
 def plot_imgs_labels(imgs, labels, rows=2, cols=5):
     figure = plt.figure(figsize=(10, 3))
     # plotting images from the training set
