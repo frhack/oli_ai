@@ -6,6 +6,7 @@ from numpy.linalg import norm
 
 
 def plot_img(image):
+    image = image.reshape((28, 28))
     plt.imshow(image, cmap='gray')
     plt.show()
 
