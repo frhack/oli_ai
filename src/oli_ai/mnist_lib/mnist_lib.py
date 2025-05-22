@@ -40,7 +40,7 @@ def plot_imgs(imgs, labels, rows=2, cols=5):
 
 
 
-def predict_minist(model,image):
+def predict(model,image):
   image = image.reshape(1, 28, 28)  # Aggiungi dimensione batch
   prediction = model.predict(image)
   #print(f"Raw prediction: {prediction}")  # [0.01, 0.02, 0.95, 0.01, ...]
