@@ -2,4 +2,4 @@ from .maze import Square, random_maze, plot_maze, search_, search_animated, sear
 
 
 # Se vuoi esporlo con il wildcard (*)
-__all__ = ["Square","random_maze", "plot_maze", "search_", "search_animated", "searh_solution"]
+__all__ = ["Square","random_maze", "plot_maze", "search_", "search_animated", "searh_solution" ]

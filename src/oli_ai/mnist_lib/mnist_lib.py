@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 from numpy import dot
 from numpy.linalg import norm
-
+import networkx as nx
 
 def plot_img(image):
     image = image.reshape((28, 28))
@@ -63,3 +63,70 @@ def visualize_weights(weights, title):
    fig.suptitle(title, fontsize=10, y=0.95)  # Titolo più piccolo
    plt.subplots_adjust(top=0.65, bottom=0.02, hspace=0, wspace=0.05)  # Margini ultra-mini
    plt.show()
+
+
+
+def show_nn_graph(input_size=2, hidden_size=0, output_size=1):
+    """Versione ultra-compatta con distanze minime"""
+    G = nx.DiGraph()
+    pos = {}
+    
+    # SPACING RIDOTTO AL MINIMO
+    vertical_spacing = 0.3  # Era 1.0, ora 0.3
+    
+    # Input layer
+    for i in range(input_size):
+        node_name = f'I{i}'
+        G.add_node(node_name, layer='input')
+        pos[node_name] = (0, (i - (input_size-1)/2) * vertical_spacing)
+    
+    # Hidden layer
+    if hidden_size > 0:
+        for i in range(hidden_size):
+            node_name = f'H{i}'
+            G.add_node(node_name, layer='hidden')
+            pos[node_name] = (1, (i - (hidden_size-1)/2) * vertical_spacing)
+            
+            for j in range(input_size):
+                G.add_edge(f'I{j}', node_name)
+    
+    # Output layer
+    output_x = 1 if hidden_size == 0 else 2
+    for i in range(output_size):
+        node_name = f'O{i}'
+        G.add_node(node_name, layer='output')
+        pos[node_name] = (output_x, (i - (output_size-1)/2) * vertical_spacing)
+        
+        if hidden_size > 0:
+            for j in range(hidden_size):
+                G.add_edge(f'H{j}', node_name)
+        else:
+            for j in range(input_size):
+                G.add_edge(f'I{j}', node_name)
+    
+    # Plot compattissimo
+    plt.figure(figsize=(8, 4))
+    
+    colors = {'input': '#3498db', 'hidden': '#2ecc71', 'output': '#e74c3c'}
+    node_colors = [colors[G.nodes[node]['layer']] for node in G.nodes()]
+    
+    nx.draw(G, pos,
+            with_labels=True,
+            node_color=node_colors,
+            node_size=600,       # Neuroni più piccoli
+            font_size=10,
+            font_weight='bold',
+            font_color='white',
+            arrows=True,
+            arrowsize=15,
+            edge_color='#95a5a6',
+            width=1.5,
+            alpha=0.8)
+    
+    arch = f"{input_size}→{hidden_size}→{output_size}" if hidden_size > 0 else f"{input_size}→{output_size}"
+    plt.title(f'NN: {arch}', fontsize=14, pad=15)
+    plt.axis('off')
+    plt.tight_layout()
+    plt.show()
+
+
