@@ -4,6 +4,10 @@ import numpy as np
 from numpy import dot
 from numpy.linalg import norm
 import networkx as nx
+import plotly.graph_objects as go
+import networkx as nx
+import matplotlib.pyplot as plt
+
 
 def plot_img(image):
     image = image.reshape((28, 28))
@@ -66,7 +70,8 @@ def visualize_weights(weights, title):
 
 
 
-def show_nn_graph_v13(layers, max_neurons=10):
+
+def show_nn_graph(layers, max_neurons=10):
     """
     Visualizza una rete neurale con architettura arbitraria
     
@@ -236,3 +241,133 @@ def show_nn_graph_v13(layers, max_neurons=10):
     plt.show()
 
 
+
+
+
+def show_xor_3d(nn, inputs, outputs):
+  # Ottieni le attivazioni dello strato nascosto per ogni punto di input
+  hidden_activations = np.array([nn.get_hidden_activations(x) for x in inputs])
+
+  # Approssima i valori molto vicini a zero a 0
+  epsilon = 1e-10
+  hidden_activations[np.abs(hidden_activations) < epsilon] = 0.0
+
+  print("\nHidden Layer Activations:")
+  for i, (inp, act) in enumerate(zip(inputs, hidden_activations)):
+      print(f"Input: {inp}, Hidden Activations: {act}")
+
+  # Analizziamo quale neurone meglio separa i punti XOR secondo il criterio richiesto
+  # Vogliamo che i punti (0,1) e (1,0) abbiano z circa 1, mentre (0,0) e (1,1) abbiano z circa 0
+  best_neuron_idx = None
+  best_score = float('inf')
+
+  for i in range(hidden_activations.shape[1]):
+      # Calcola lo score per questo neurone
+      score = abs(hidden_activations[1, i] - 1) + abs(hidden_activations[2, i] - 1) + abs(hidden_activations[0, i]) + abs(hidden_activations[3, i])
+
+      if score < best_score:
+          best_score = score
+          best_neuron_idx = i
+
+  print(f"\nIl neurone che meglio separa i punti XOR è il neurone {best_neuron_idx+1}")
+
+  # Crea i dati 3D usando l'attivazione del miglior neurone nascosto come terza dimensione
+  data_3d = np.column_stack((inputs, hidden_activations[:, best_neuron_idx]))
+
+  # Visualizzazione interattiva con Plotly
+  fig = go.Figure()
+
+  # Aggiungi i punti XOR
+  fig.add_trace(go.Scatter3d(
+      x=data_3d[:, 0],  # Input 1 - Asse X
+      y=data_3d[:, 1],  # Input 2 - Asse Y
+      z=data_3d[:, 2],  # Attivazione Neurone - Asse Z
+      mode='markers+text',
+      marker=dict(
+        size=14,
+        color=outputs.ravel(),
+        colorscale='Viridis',
+        opacity=1.0,
+        symbol='circle',
+        line=dict(
+            color='black',
+            width=1
+        )
+      ),
+      text=[f"({x[0]},{x[1]})" for x in inputs],
+      textposition="top center",
+      textfont=dict(
+        size=12,
+        color='black'
+      ),
+      hovertext=[f"Input: ({x[0]}, {x[1]})<br>Output XOR: {y[0]}<br>Attivazione Neurone: {z:.4f}"
+          for x, y, z in zip(inputs, outputs, data_3d[:, 2])],
+      hoverinfo="text",
+      name='XOR Points'
+  ))
+
+  # Imposta il layout con più dettagli
+  fig.update_layout( 
+      title=dict(
+          text='Visualizzazione 3D del Problema XOR con Attivazione del Neurone Nascosto',
+          font=dict(size=20)
+      ),
+      scene=dict(
+        xaxis=dict(
+            title='Input 1 (X)',
+            range=[-0.1, 1.2],
+            tickvals=[0, 1],
+            showbackground=True,
+            backgroundcolor='rgb(255, 230, 230)',  # Sfondo rosato per l'asse X
+            gridcolor='red',
+        ),
+        yaxis=dict(
+            title='Input 2 (Y)',
+            range=[-0.1, 1.2],
+            tickvals=[0, 1],
+            showbackground=True,
+            backgroundcolor='rgb(230, 255, 230)',  # Sfondo verdino per l'asse Y
+            gridcolor='green',
+        ),
+        zaxis=dict(
+            title='Attivazione Neurone (Z)',
+            range=[-0.1, 1.2],
+            tickvals=[0, 0.5, 1],
+            showbackground=True,
+            backgroundcolor='rgb(230, 230, 255)',  # Sfondo bluastro per l'asse Z
+            gridcolor='blue',
+        ),
+        camera=dict(
+            eye=dict(x=1.8, y=1.8, z=1.2)
+        )
+      ),
+      height=700,
+      width=900,
+      margin=dict(l=0, r=0, b=0, t=40, pad=100),  # Aumentato il margine inferiore
+  )
+
+  # Mostra la figura con più spazio sopra e sotto
+  fig.show()
+
+
+
+def show_xor_error(errors_history):
+  # Visualizzazione dell'andamento dell'errore durante il training
+  fig_error = go.Figure()
+  fig_error.add_trace(go.Scatter(
+    y=errors_history,
+    mode='lines',
+    name='MSE',
+    line=dict(width=2, color='royalblue')
+  ))
+
+  fig_error.update_layout(
+    title='Andamento dell\'errore durante il training',
+    xaxis_title='Epoca',
+    yaxis_title='MSE (Mean Squared Error)',
+    yaxis_type='log',
+    height=400,
+    width=800,
+    margin=dict(t=100, b=100)  # Aumentato il margine superiore e inferiore
+  )
+  fig_error.show()
