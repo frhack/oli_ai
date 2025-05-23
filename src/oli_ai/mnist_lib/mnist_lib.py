@@ -73,7 +73,7 @@ def visualize_weights(weights, title):
 import networkx as nx
 import matplotlib.pyplot as plt
 
-def show_nn_graph_v13(layers, max_neurons=10):
+def show_nn_graph(layers, max_neurons=10):
     """
     Visualizza una rete neurale con architettura arbitraria
     
