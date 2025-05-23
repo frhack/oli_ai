@@ -66,54 +66,141 @@ def visualize_weights(weights, title):
 
 
 
-def show_nn_graph(input_size=2, hidden_size=0, output_size=1):
-    """Versione ultra-compatta con distanze minime"""
+def show_nn_graph_v13(layers, max_neurons=10):
+    """
+    Visualizza una rete neurale con architettura arbitraria
+    
+    Args:
+        layers: lista con il numero di neuroni per ogni layer
+                Es: [2,1] = 2 input, 1 output
+                    [2,2,1] = 2 input, 2 hidden, 1 output  
+                    [2,2,4,5,4] = 2 input, 2 hidden, 4 hidden, 5 hidden, 4 output
+        max_neurons: numero massimo di neuroni da mostrare per layer (default=10)
+                    Se un layer ha più neuroni, mostra i primi, poi "...", poi l'ultimo
+    """
+    if len(layers) < 2:
+        raise ValueError("Servono almeno 2 layer (input e output)")
+    
     G = nx.DiGraph()
     pos = {}
     
-    # SPACING RIDOTTO AL MINIMO
-    vertical_spacing = 0.3  # Era 1.0, ora 0.3
+    # SPACING DINAMICO in base al numero massimo di neuroni visualizzati
+    max_visual_neurons = min(max(layers), max_neurons)
+    vertical_spacing = max(0.2, min(0.5, 3.0 / max_visual_neurons))  # Adatta spacing
+    horizontal_spacing = 1.5
     
-    # Input layer
-    for i in range(input_size):
-        node_name = f'I{i}'
-        G.add_node(node_name, layer='input')
-        pos[node_name] = (0, (i - (input_size-1)/2) * vertical_spacing)
+    # Crea tutti i nodi e le posizioni
+    all_nodes = []
+    all_actual_nodes = []  # Nodi reali (senza "...")
+    node_labels = {}  # Mappa per etichette pulite
     
-    # Hidden layer
-    if hidden_size > 0:
-        for i in range(hidden_size):
-            node_name = f'H{i}'
-            G.add_node(node_name, layer='hidden')
-            pos[node_name] = (1, (i - (hidden_size-1)/2) * vertical_spacing)
-            
-            for j in range(input_size):
-                G.add_edge(f'I{j}', node_name)
-    
-    # Output layer
-    output_x = 1 if hidden_size == 0 else 2
-    for i in range(output_size):
-        node_name = f'O{i}'
-        G.add_node(node_name, layer='output')
-        pos[node_name] = (output_x, (i - (output_size-1)/2) * vertical_spacing)
+    for layer_idx, layer_size in enumerate(layers):
+        layer_nodes = []
+        layer_actual_nodes = []
         
-        if hidden_size > 0:
-            for j in range(hidden_size):
-                G.add_edge(f'H{j}', node_name)
+        # Determina il tipo di layer
+        if layer_idx == 0:
+            layer_type = 'input'
+            prefix = 'I'
+        elif layer_idx == len(layers) - 1:
+            layer_type = 'output'
+            prefix = 'O'
         else:
-            for j in range(input_size):
-                G.add_edge(f'I{j}', node_name)
+            layer_type = 'hidden'
+            prefix = f'H{layer_idx}'
+        
+        # Logica SICURA - prima calcolo esatto dei nodi poi creazione
+        visual_nodes = []  # Lista di (nome_display, tipo, posizione_y)
+        actual_nodes_only = []  # Solo neuroni reali per connessioni
+        
+        if layer_size <= max_neurons:
+            # Caso semplice: tutti i neuroni (partendo da 1, dall'alto al basso)
+            for i in range(layer_size):
+                display_name = f'{i+1}'  # SOLO NUMERO per display
+                y_pos = ((layer_size-1)/2 - i) * vertical_spacing
+                visual_nodes.append((display_name, layer_type, y_pos))
+                actual_nodes_only.append(display_name)
+        else:
+            # Caso complesso: primi + ... + ultimo (dall'alto al basso)
+            total_slots = max_neurons
+            y_positions_list = [((total_slots-1)/2 - i) * vertical_spacing for i in range(total_slots)]
+            
+            slot = 0
+            # Primi neuroni (max_neurons - 2, partendo da 1)
+            for i in range(max_neurons - 2):
+                display_name = f'{i+1}'  # SOLO NUMERO: 1,2,3...
+                visual_nodes.append((display_name, layer_type, y_positions_list[slot]))
+                actual_nodes_only.append(display_name)
+                slot += 1
+            
+            # "..." (PENULTIMO slot)
+            visual_nodes.append(('...', 'dots', y_positions_list[slot]))
+            slot += 1
+            
+            # Ultimo neurone (ULTIMO slot)
+            last_display = f'{layer_size}'
+            visual_nodes.append((last_display, layer_type, y_positions_list[slot]))
+            actual_nodes_only.append(last_display)
+        
+        # Crea tutti i nodi con nomi unici per NetworkX
+        x = layer_idx * horizontal_spacing
+        
+        for display_name, node_type, y_pos in visual_nodes:
+            # Nome unico per NetworkX
+            unique_name = f'{prefix}_{display_name}'
+            G.add_node(unique_name, layer=node_type)
+            pos[unique_name] = (x, y_pos)
+            layer_nodes.append(unique_name)
+            
+            # Mappa per etichette pulite
+            node_labels[unique_name] = display_name
+        
+        # Solo neuroni reali per connessioni
+        layer_actual_nodes = [f'{prefix}_{name}' for name in actual_nodes_only]
+        
+        all_nodes.append(layer_nodes)
+        all_actual_nodes.append(layer_actual_nodes)
     
-    # Plot compattissimo
-    plt.figure(figsize=(8, 4))
+    # Crea le connessioni tra layer adiacenti
+    for layer_idx in range(len(layers) - 1):
+        current_layer = all_actual_nodes[layer_idx]  # Solo nodi reali
+        next_layer = all_actual_nodes[layer_idx + 1]  # Solo nodi reali
+        
+        # Connetti ogni neurone del layer corrente con ogni neurone del layer successivo
+        for current_node in current_layer:
+            for next_node in next_layer:
+                G.add_edge(current_node, next_node)
     
-    colors = {'input': '#3498db', 'hidden': '#2ecc71', 'output': '#e74c3c'}
+    # Calcola dimensioni figura in base al numero di layer E neuroni visualizzati
+    fig_width = max(6, len(layers) * 1.8)
+    fig_height = max(3, max_visual_neurons * 0.8 + 1)
+    
+    plt.figure(figsize=(fig_width, fig_height))
+    
+    # Colori per i diversi tipi di layer
+    colors = {'input': '#3498db', 'hidden': '#2ecc71', 'output': '#e74c3c', 'dots': '#95a5a6'}
     node_colors = [colors[G.nodes[node]['layer']] for node in G.nodes()]
     
+    # Dimensioni dei nodi (più piccoli per i "...")
+    node_sizes = []
+    for node in G.nodes():
+        if G.nodes[node]['layer'] == 'dots':
+            node_sizes.append(300)  # Più piccoli per "..."
+        else:
+            node_sizes.append(600)  # Dimensione normale
+    
+    # Disegna la rete con etichette pulite
+    # Crea lista ordinata di nodi per garantire ordine nel drawing
+    ordered_nodes = []
+    for layer_nodes in all_nodes:
+        ordered_nodes.extend(layer_nodes)
+    
     nx.draw(G, pos,
+            nodelist=ordered_nodes,  # FORZA l'ordine dei nodi
+            labels=node_labels,      # Etichette solo numeriche
             with_labels=True,
             node_color=node_colors,
-            node_size=600,       # Neuroni più piccoli
+            node_size=node_sizes,
             font_size=10,
             font_weight='bold',
             font_color='white',
@@ -123,8 +210,27 @@ def show_nn_graph(input_size=2, hidden_size=0, output_size=1):
             width=1.5,
             alpha=0.8)
     
-    arch = f"{input_size}→{hidden_size}→{output_size}" if hidden_size > 0 else f"{input_size}→{output_size}"
-    plt.title(f'NN: {arch}', fontsize=14, pad=15)
+    # Titolo con architettura
+    arch_str = '→'.join(map(str, layers))
+    plt.title(f'Neural Network Architecture: {arch_str}', fontsize=14, pad=20)
+    
+    # Aggiungi etichette per i layer
+    layer_labels = ['Input']
+    if len(layers) > 2:
+        for i in range(1, len(layers) - 1):
+            layer_labels.append(f'Hidden {i}')
+    layer_labels.append('Output')
+    
+    # Posiziona le etichette dei layer
+    for i, label in enumerate(layer_labels):
+        plt.text(i * horizontal_spacing, 
+                max([pos[node][1] for node in all_nodes[i]]) + 0.5,
+                label, 
+                ha='center', 
+                va='bottom',
+                fontsize=12,
+                fontweight='bold')
+    
     plt.axis('off')
     plt.tight_layout()
     plt.show()
