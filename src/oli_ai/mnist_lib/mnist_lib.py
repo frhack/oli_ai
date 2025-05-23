@@ -348,6 +348,7 @@ def show_xor_3d(nn, inputs, outputs):
 
   # Mostra la figura con più spazio sopra e sotto
   fig.show()
+  return data_3d
 
 
 
