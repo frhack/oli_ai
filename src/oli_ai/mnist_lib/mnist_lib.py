@@ -7,6 +7,7 @@ import networkx as nx
 import plotly.graph_objects as go
 import networkx as nx
 import matplotlib.pyplot as plt
+from tensorflow.keras.models import Model
 
 
 def plot_img(image):
@@ -244,112 +245,103 @@ def show_nn_graph(layers, max_neurons=10):
 
 
 
-def show_xor_3d(nn, inputs, outputs):
-  # Ottieni le attivazioni dello strato nascosto per ogni punto di input
-  hidden_activations = np.array([nn.get_hidden_activations(x) for x in inputs])
+def show_xor_3d(model, h1,h2,inputs,outputs):
 
-  # Approssima i valori molto vicini a zero a 0
-  epsilon = 1e-10
-  hidden_activations[np.abs(hidden_activations) < epsilon] = 0.0
+  # === 3. Estrai attivazioni da entrambi i hidden layer ===
+  hidden1_model = Model(inputs=model.input, outputs=h1)
+  hidden2_model = Model(inputs=model.input, outputs=h2)
+  act1 = hidden1_model.predict(inputs)
+  act2 = hidden2_model.predict(inputs)
 
-  print("\nHidden Layer Activations:")
-  for i, (inp, act) in enumerate(zip(inputs, hidden_activations)):
-      print(f"Input: {inp}, Hidden Activations: {act}")
+  # === 4. Unisci le attivazioni dei neuroni ===
+  all_activations = np.concatenate([act1, act2], axis=1)
 
-  # Analizziamo quale neurone meglio separa i punti XOR secondo il criterio richiesto
-  # Vogliamo che i punti (0,1) e (1,0) abbiano z circa 1, mentre (0,0) e (1,1) abbiano z circa 0
-  best_neuron_idx = None
-  best_score = float('inf')
+  # === 5. Trova il neurone con massima separazione tra classi ===
+  best_index = 0
+  max_sep = -np.inf
+  for i in range(all_activations.shape[1]):
+      z = all_activations[:, i]
+      z0 = z[outputs[:, 0] == 0]
+      z1 = z[outputs[:, 0] == 1]
+      sep = np.abs(np.mean(z0) - np.mean(z1))
+      if sep > max_sep:
+          max_sep = sep
+          best_index = i
 
-  for i in range(hidden_activations.shape[1]):
-      # Calcola lo score per questo neurone
-      score = abs(hidden_activations[1, i] - 1) + abs(hidden_activations[2, i] - 1) + abs(hidden_activations[0, i]) + abs(hidden_activations[3, i])
+  # === 6. Prepara i dati per il grafico 3D ===
+  best_neuron_values = all_activations[:, best_index]
+  data_3d = np.hstack([inputs, best_neuron_values.reshape(-1, 1)])
 
-      if score < best_score:
-          best_score = score
-          best_neuron_idx = i
+  # === 7. Identifica il layer del neurone scelto ===
+  if best_index < act1.shape[1]:
+      layer_name = f"Hidden Layer 1 - Neuron {best_index}"
+  else:
+      layer_name = f"Hidden Layer 2 - Neuron {best_index - act1.shape[1]}"
 
-  print(f"\nIl neurone che meglio separa i punti XOR è il neurone {best_neuron_idx+1}")
-
-  # Crea i dati 3D usando l'attivazione del miglior neurone nascosto come terza dimensione
-  data_3d = np.column_stack((inputs, hidden_activations[:, best_neuron_idx]))
-
-  # Visualizzazione interattiva con Plotly
+  # === 8. Plot 3D con Plotly ===
   fig = go.Figure()
 
-  # Aggiungi i punti XOR
   fig.add_trace(go.Scatter3d(
-      x=data_3d[:, 0],  # Input 1 - Asse X
-      y=data_3d[:, 1],  # Input 2 - Asse Y
-      z=data_3d[:, 2],  # Attivazione Neurone - Asse Z
+      x=data_3d[:, 0],
+      y=data_3d[:, 1],
+      z=data_3d[:, 2],
       mode='markers+text',
       marker=dict(
-        size=14,
-        color=outputs.ravel(),
-        colorscale='Viridis',
-        opacity=1.0,
-        symbol='circle',
-        line=dict(
-            color='black',
-            width=1
-        )
+          size=14,
+          color=outputs.ravel(),
+          colorscale='Viridis',
+          opacity=1.0,
+          symbol='circle',
+          line=dict(color='black', width=1)
       ),
       text=[f"({x[0]},{x[1]})" for x in inputs],
       textposition="top center",
-      textfont=dict(
-        size=12,
-        color='black'
-      ),
-      hovertext=[f"Input: ({x[0]}, {x[1]})<br>Output XOR: {y[0]}<br>Attivazione Neurone: {z:.4f}"
-          for x, y, z in zip(inputs, outputs, data_3d[:, 2])],
+      textfont=dict(size=12, color='black'),
+      hovertext=[
+          f"Input: ({x[0]}, {x[1]})<br>Output XOR: {y[0]}<br>Attivazione Neurone: {z:.4f}"
+          for x, y, z in zip(inputs, outputs, data_3d[:, 2])
+      ],
       hoverinfo="text",
       name='XOR Points'
   ))
 
-  # Imposta il layout con più dettagli
-  fig.update_layout( 
+  fig.update_layout(
       title=dict(
-          text='Visualizzazione 3D del Problema XOR con Attivazione del Neurone Nascosto',
+          text=f'Visualizzazione 3D XOR – {layer_name}',
           font=dict(size=20)
       ),
       scene=dict(
-        xaxis=dict(
-            title='Input 1 (X)',
-            range=[-0.1, 1.2],
-            tickvals=[0, 1],
-            showbackground=True,
-            backgroundcolor='rgb(255, 230, 230)',  # Sfondo rosato per l'asse X
-            gridcolor='red',
-        ),
-        yaxis=dict(
-            title='Input 2 (Y)',
-            range=[-0.1, 1.2],
-            tickvals=[0, 1],
-            showbackground=True,
-            backgroundcolor='rgb(230, 255, 230)',  # Sfondo verdino per l'asse Y
-            gridcolor='green',
-        ),
-        zaxis=dict(
-            title='Attivazione Neurone (Z)',
-            range=[-0.1, 1.2],
-            tickvals=[0, 0.5, 1],
-            showbackground=True,
-            backgroundcolor='rgb(230, 230, 255)',  # Sfondo bluastro per l'asse Z
-            gridcolor='blue',
-        ),
-        camera=dict(
-            eye=dict(x=1.8, y=1.8, z=1.2)
-        )
+          xaxis=dict(
+              title='Input 1 (X)',
+              range=[-0.1, 1.2],
+              tickvals=[0, 1],
+              showbackground=True,
+              backgroundcolor='rgb(255, 230, 230)',
+              gridcolor='red',
+          ),
+          yaxis=dict(
+              title='Input 2 (Y)',
+              range=[-0.1, 1.2],
+              tickvals=[0, 1],
+              showbackground=True,
+              backgroundcolor='rgb(230, 255, 230)',
+              gridcolor='green',
+          ),
+          zaxis=dict(
+              title='Attivazione Neurone (Z)',
+              range=[-0.1, 1.1],
+              showbackground=True,
+              backgroundcolor='rgb(230, 230, 255)',
+              gridcolor='blue',
+          ),
+          camera=dict(eye=dict(x=1.8, y=1.8, z=1.2))
       ),
       height=700,
       width=900,
-      margin=dict(l=0, r=0, b=0, t=40, pad=100),  # Aumentato il margine inferiore
+      margin=dict(l=0, r=0, b=0, t=40, pad=100),
   )
 
-  # Mostra la figura con più spazio sopra e sotto
   fig.show()
-  return data_3d
-
 
 
 def show_xor_error(errors_history):
