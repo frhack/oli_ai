@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "oli_ai"
-version = "0.11.1"
+version = "0.12.1"
 description = "Support library for Oli AI course"
 readme = "README.rst"
 authors = [
