@@ -518,3 +518,200 @@ def show_xor_error(errors_history):
     margin=dict(t=100, b=100)  # Aumentato il margine superiore e inferiore
   )
   fig_error.show()
+
+
+# =============================================================================
+# Estensioni didattiche (aggiunte in v0.13.0)
+# -----------------------------------------------------------------------------
+# API in italiano per il notebook oli_ai_mnist_cosine_similarity_didattica.
+# 100% retrocompatibili: nessuna funzione esistente e' stata toccata.
+# =============================================================================
+# -----------------------------------------------------------------------------
+# Costruttore di vettori con sintassi matematica: v[1, 2, 3]
+# -----------------------------------------------------------------------------
+class _VettoreFactory:
+    """Permette la sintassi v[1, 2, 3] per costruire un vettore.
+    Dietro le quinte è un numpy array, quindi le operazioni vettoriali
+    (+, -, *, prodotto per scalare) si comportano come in matematica.
+
+    Esempi:
+        v[1, 2, 3] + v[4, 5, 6]   ->  array([5., 7., 9.])
+        3 * v[1, 2, 3]            ->  array([3., 6., 9.])
+        v[1, 2, 3] - v[1, 0, 0]   ->  array([0., 2., 3.])
+    """
+    def __getitem__(self, indici):
+        if not isinstance(indici, tuple):
+            indici = (indici,)
+        return np.array(indici, dtype=float)
+
+    def __repr__(self):
+        return "v[...]  costruttore di vettori (es. v[1, 2, 3])"
+
+
+v = _VettoreFactory()
+
+
+# -----------------------------------------------------------------------------
+# Caricamento dati
+# -----------------------------------------------------------------------------
+def carica_mnist():
+    """Carica MNIST e restituisce (immagini_train, etichette_train,
+    immagini_test, etichette_test). Le immagini restano matrici 28x28
+    di interi 0-255 (numpy array, ma indicizzabili come liste)."""
+    from keras.datasets import mnist
+    (X_train, y_train), (X_test, y_test) = mnist.load_data()
+    return X_train, y_train, X_test, y_test
+
+
+# -----------------------------------------------------------------------------
+# Visualizzazione (alias didattici in italiano sopra le funzioni esistenti)
+# -----------------------------------------------------------------------------
+def mostra_cifra(immagine):
+    """Mostra una singola cifra. Accetta sia matrice 28x28 sia vettore 784."""
+    plot_img(immagine)
+
+
+def mostra_cifre(immagini, etichette, righe=2, colonne=5):
+    """Mostra una griglia di cifre con le rispettive etichette."""
+    plot_imgs_labels(immagini, list(etichette), righe, colonne)
+
+
+# -----------------------------------------------------------------------------
+# Filtro / media (sostituiscono numpy boolean indexing e np.average)
+# -----------------------------------------------------------------------------
+def filtra_per_cifra(immagini, etichette, cifra):
+    """Restituisce solo le immagini la cui etichetta è 'cifra'."""
+    immagini = np.asarray(immagini)
+    etichette = np.asarray(etichette)
+    return immagini[etichette == cifra]
+
+
+def media_immagini(immagini):
+    """Calcola la 'cifra media' = media pixel-per-pixel di tutte le immagini.
+    Restituisce una matrice 28x28."""
+    return np.average(np.asarray(immagini), axis=0)
+
+
+# -----------------------------------------------------------------------------
+# Operazioni vettoriali esposte ai ragazzi
+# -----------------------------------------------------------------------------
+def appiattisci(immagine):
+    """Trasforma una matrice 28x28 in un vettore di 784 numeri.
+    Se è già un vettore, lo restituisce invariato."""
+    a = np.asarray(immagine, dtype=float)
+    return a.reshape(-1)
+
+
+def prodotto_scalare(v1, v2):
+    """Prodotto scalare tra due vettori (anche immagini 28x28: vengono
+    appiattite automaticamente). Definizione dalle slide ripasso_vettori."""
+    a = appiattisci(v1)
+    b = appiattisci(v2)
+    return float(np.dot(a, b))
+
+
+def norma(v):
+    """Lunghezza (norma euclidea) del vettore."""
+    return float(np.linalg.norm(appiattisci(v)))
+
+
+def similarita(v1, v2):
+    """Similarità coseno tra due vettori. Funziona anche con immagini 28x28."""
+    return prodotto_scalare(v1, v2) / (norma(v1) * norma(v2))
+
+
+# alias con accento per coerenza con le slide (Python accetta l'identificatore)
+similarità = similarita
+
+
+# -----------------------------------------------------------------------------
+# Predizione (sostituisce reshape + argmax_sim + comprehension)
+# -----------------------------------------------------------------------------
+def predici(immagine, modello):
+    """Restituisce la cifra (0-9) il cui vettore medio è più simile
+    all'immagine data. 'modello' è la lista dei 10 vettori medi."""
+    similarita_per_cifra = [similarita(immagine, vettore_medio)
+                            for vettore_medio in modello]
+    return int(np.argmax(similarita_per_cifra))
+
+
+def predici_tutte(immagini, modello):
+    """Applica predici() a tutte le immagini. Restituisce un array di
+    predizioni (una per immagine)."""
+    immagini_v = np.asarray(immagini, dtype=float).reshape(len(immagini), -1)
+    modello_v = np.asarray(modello, dtype=float).reshape(len(modello), -1)
+    # versione vettorizzata interna (veloce); l'API esterna resta semplice
+    norme_img = np.linalg.norm(immagini_v, axis=1, keepdims=True)
+    norme_mod = np.linalg.norm(modello_v, axis=1, keepdims=True)
+    img_norm = immagini_v / norme_img
+    mod_norm = modello_v / norme_mod
+    sim = img_norm @ mod_norm.T
+    return np.argmax(sim, axis=1)
+
+
+# -----------------------------------------------------------------------------
+# Valutazione
+# -----------------------------------------------------------------------------
+def accuratezza(predizioni, etichette_vere):
+    """Frazione di predizioni corrette (fra 0 e 1)."""
+    predizioni = np.asarray(predizioni)
+    etichette_vere = np.asarray(etichette_vere)
+    return float((predizioni == etichette_vere).mean())
+
+
+def mostra_matrice_confusione(etichette_vere, predizioni, normalizzata=False):
+    """Visualizza la matrice di confusione 10x10."""
+    from sklearn.metrics import confusion_matrix
+    import seaborn as sns
+    M = confusion_matrix(etichette_vere, predizioni)
+    fmt = 'd'
+    if normalizzata:
+        M = M.astype(float) / M.sum(axis=1, keepdims=True)
+        fmt = '.2f'
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(M, annot=True, fmt=fmt, cmap='Blues',
+                xticklabels=range(10), yticklabels=range(10))
+    plt.xlabel('Cifra predetta')
+    plt.ylabel('Cifra reale')
+    plt.title('Matrice di confusione' + (' (normalizzata)' if normalizzata else ''))
+    plt.show()
+
+
+def cifre_piu_difficili(etichette_vere, predizioni):
+    """Stampa le cifre ordinate dalla più difficile alla più facile da
+    classificare, con la rispettiva accuratezza."""
+    from sklearn.metrics import confusion_matrix
+    M = confusion_matrix(etichette_vere, predizioni)
+    accuratezza_per_cifra = np.diag(M) / M.sum(axis=1)
+    ordine = np.argsort(accuratezza_per_cifra)
+    print("Cifre dalla più difficile alla più facile:")
+    for cifra in ordine:
+        print(f"  cifra {cifra}: {accuratezza_per_cifra[cifra]*100:.1f}%")
+
+
+def mostra_errori_frequenti(immagini_test, etichette_vere, predizioni,
+                            quanti_tipi=3, esempi_per_tipo=5):
+    """Mostra esempi visivi delle confusioni più frequenti."""
+    from sklearn.metrics import confusion_matrix
+    M = confusion_matrix(etichette_vere, predizioni)
+    np.fill_diagonal(M, 0)
+    # trova le N celle (reale, predetta) con più errori
+    coppie = []
+    for i in range(10):
+        for j in range(10):
+            if M[i, j] > 0:
+                coppie.append((i, j, M[i, j]))
+    coppie.sort(key=lambda t: t[2], reverse=True)
+    etichette_vere = np.asarray(etichette_vere)
+    predizioni = np.asarray(predizioni)
+    for reale, predetta, conteggio in coppie[:quanti_tipi]:
+        print(f"\nEsempi di cifra {reale} classificata come {predetta} "
+              f"({conteggio} casi):")
+        indici = np.where((etichette_vere == reale) & (predizioni == predetta))[0]
+        indici = indici[:esempi_per_tipo]
+        if len(indici) == 0:
+            continue
+        immagini_errate = [immagini_test[i] for i in indici]
+        etichette_errate = [f"vera:{reale} pred:{predetta}"] * len(immagini_errate)
+        plot_imgs_labels(immagini_errate, etichette_errate,
+                         rows=1, cols=len(immagini_errate))
