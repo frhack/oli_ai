@@ -1,3 +1,8 @@
+# Local secrets (mai committarli)
+token
+*.pypirc
+.pypirc
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
