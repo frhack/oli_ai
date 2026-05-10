@@ -1,5 +1,5 @@
 # Local secrets (mai committarli)
-token
+token*
 *.pypirc
 .pypirc
 
